@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from agents import Agent
 
-from cloudwatch_triage_agent.config import get_config
+from cloudwatch_triage_agent.config import get_settings
 from cloudwatch_triage_agent.models.schemas import TriageDecision
 
 TRIAGE_AGENT_INSTRUCTIONS = """You are a Triage Agent for incident investigation. Your role is to:
@@ -100,8 +100,8 @@ def create_triage_agent() -> Agent:
     Returns:
         Configured Agent instance with structured output
     """
-    config = get_config()
-    available_services = config.services.list_services()
+    settings = get_settings()
+    available_services = settings.services.list_services()
 
     # Format available services for the prompt
     if available_services:

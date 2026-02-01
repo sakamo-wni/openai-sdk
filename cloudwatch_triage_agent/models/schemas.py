@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-Environment = Literal["dev", "prod"]
+type Environment = Literal["dev", "prod"]
 
 
 class TriageDecision(BaseModel):
     """Decision made by the Triage Agent."""
+
+    model_config = ConfigDict(strict=True)
 
     service: str = Field(description="Target service name to investigate")
     environment: Environment = Field(description="Target environment (dev or prod)")
@@ -28,12 +30,17 @@ class TriageDecision(BaseModel):
 class LogSearchResult(BaseModel):
     """Result from CloudWatch Logs search."""
 
+    model_config = ConfigDict(strict=True)
+
     query: str = Field(description="The query that was executed")
     log_group: str = Field(description="The log group that was searched")
     time_range_start: datetime = Field(description="Start of search time range")
     time_range_end: datetime = Field(description="End of search time range")
-    records: list[dict] = Field(description="Log records returned", default_factory=list)
-    statistics: dict = Field(
+    records: list[dict[str, Any]] = Field(
+        description="Log records returned",
+        default_factory=list,
+    )
+    statistics: dict[str, Any] = Field(
         description="Query statistics (bytes scanned, records matched, etc.)",
         default_factory=dict,
     )
@@ -42,6 +49,8 @@ class LogSearchResult(BaseModel):
 
 class DeploymentInfo(BaseModel):
     """GitHub deployment information."""
+
+    model_config = ConfigDict(strict=True)
 
     deployment_id: int = Field(description="GitHub deployment ID")
     environment: str = Field(description="Deployment environment")
@@ -57,19 +66,21 @@ class DeploymentInfo(BaseModel):
 class CloudTrailEvent(BaseModel):
     """AWS CloudTrail event information."""
 
+    model_config = ConfigDict(strict=True)
+
     event_id: str = Field(description="Unique event ID")
     event_name: str = Field(description="AWS API action name")
     event_source: str = Field(description="AWS service that generated the event")
     event_time: datetime = Field(description="When the event occurred")
     username: str = Field(description="User or role that performed the action")
     source_ip: str | None = Field(default=None, description="Source IP address")
-    resources: list[dict] = Field(
+    resources: list[dict[str, Any]] = Field(
         description="AWS resources affected",
         default_factory=list,
     )
     error_code: str | None = Field(default=None, description="Error code if action failed")
     error_message: str | None = Field(default=None, description="Error message if action failed")
-    request_parameters: dict = Field(
+    request_parameters: dict[str, Any] = Field(
         description="Request parameters",
         default_factory=dict,
     )
@@ -77,6 +88,8 @@ class CloudTrailEvent(BaseModel):
 
 class CauseCandidate(BaseModel):
     """A potential root cause candidate."""
+
+    model_config = ConfigDict(strict=True)
 
     rank: int = Field(description="Rank (1-3, with 1 being most likely)")
     title: str = Field(description="Brief title of the cause")
@@ -94,6 +107,8 @@ class CauseCandidate(BaseModel):
 class CauseCandidateResult(BaseModel):
     """Result containing top cause candidates from investigation."""
 
+    model_config = ConfigDict(strict=True)
+
     service: str = Field(description="Service that was investigated")
     environment: Environment = Field(description="Environment that was investigated")
     time_range_start: datetime = Field(description="Start of investigation period")
@@ -109,6 +124,8 @@ class CauseCandidateResult(BaseModel):
 
 class SlackMessage(BaseModel):
     """Slack message to be posted."""
+
+    model_config = ConfigDict(strict=True)
 
     channel: str = Field(description="Slack channel ID")
     title: str = Field(description="Message title/header")
@@ -127,6 +144,8 @@ class SlackMessage(BaseModel):
 
 class InvestigationContext(BaseModel):
     """Context passed between agents during investigation."""
+
+    model_config = ConfigDict(strict=True)
 
     triage_decision: TriageDecision = Field(description="Initial triage decision")
     log_results: list[LogSearchResult] = Field(

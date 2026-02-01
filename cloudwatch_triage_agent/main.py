@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from datetime import datetime, timezone
+from typing import Any
 
 from agents import Runner
 
 from cloudwatch_triage_agent.agents import create_investigator_agent, create_triage_agent
-from cloudwatch_triage_agent.config import get_config
+from cloudwatch_triage_agent.config import get_settings
 from cloudwatch_triage_agent.models.schemas import TriageDecision
 
 
@@ -26,8 +26,8 @@ def print_banner() -> None:
 
 def validate_config() -> bool:
     """Validate configuration and print warnings."""
-    config = get_config()
-    errors = config.validate()
+    settings = get_settings()
+    errors = settings.validate_config()
 
     if errors:
         print("\n⚠️  Configuration warnings:")
@@ -67,7 +67,7 @@ async def run_triage(symptoms: str) -> TriageDecision:
     return decision
 
 
-async def run_investigation(triage_decision: TriageDecision) -> dict:
+async def run_investigation(triage_decision: TriageDecision) -> dict[str, Any]:
     """Run the Investigator Agent to perform deep analysis.
 
     Args:
@@ -214,7 +214,7 @@ async def interactive_session() -> None:
             print("Please try again.\n")
 
 
-async def single_investigation(symptoms: str, auto_approve_slack: bool = False) -> dict:
+async def single_investigation(symptoms: str, auto_approve_slack: bool = False) -> dict[str, Any]:
     """Run a single investigation programmatically.
 
     Args:

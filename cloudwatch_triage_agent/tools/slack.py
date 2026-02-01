@@ -2,22 +2,23 @@
 
 from __future__ import annotations
 
-from typing import Literal
+import uuid
+from typing import Any, Literal
 
 from agents import function_tool
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from cloudwatch_triage_agent.config import get_config
+from cloudwatch_triage_agent.config import get_settings
 
 # Global approval state - in production, use proper state management
-_pending_messages: dict[str, dict] = {}
+_pending_messages: dict[str, dict[str, Any]] = {}
 
 
 def _get_slack_client() -> WebClient:
     """Get a Slack WebClient."""
-    config = get_config()
-    return WebClient(token=config.slack.bot_token)
+    settings = get_settings()
+    return WebClient(token=settings.slack.bot_token)
 
 
 def _severity_to_color(severity: str) -> str:
@@ -34,9 +35,9 @@ def _build_slack_blocks(
     title: str,
     body: str,
     severity: str,
-    cause_candidates: list[dict],
+    cause_candidates: list[dict[str, Any]],
     investigation_link: str | None = None,
-) -> tuple[list[dict], list[dict]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Build Slack blocks and attachments for the message."""
     blocks = [
         {
@@ -124,11 +125,11 @@ def post_to_slack(
     title: str,
     body: str,
     severity: Literal["critical", "warning", "info"],
-    cause_candidates: list[dict],
+    cause_candidates: list[dict[str, Any]],
     investigation_link: str | None = None,
     channel_override: str | None = None,
     require_approval: bool = True,
-) -> dict:
+) -> dict[str, Any]:
     """Post an incident triage summary to Slack.
 
     IMPORTANT: This action requires human approval before execution when
@@ -164,8 +165,8 @@ def post_to_slack(
         - channel: Target Slack channel
         - error: Error message if failed
     """
-    config = get_config()
-    channel = channel_override or config.slack.channel_id
+    settings = get_settings()
+    channel = channel_override or settings.slack.channel_id
 
     if not channel:
         return {
@@ -173,7 +174,7 @@ def post_to_slack(
             "error": "No Slack channel configured. Set SLACK_CHANNEL_ID or provide channel_override.",
         }
 
-    if not config.slack.bot_token:
+    if not settings.slack.bot_token:
         return {
             "status": "failed",
             "error": "No Slack bot token configured. Set SLACK_BOT_TOKEN.",
@@ -215,8 +216,6 @@ Cause Candidates:
 
     if require_approval:
         # Queue message for approval
-        import uuid
-
         message_id = str(uuid.uuid4())[:8]
         _pending_messages[message_id] = message_data
 
@@ -255,7 +254,7 @@ Cause Candidates:
 
 
 @function_tool
-def approve_slack_message(message_id: str) -> dict:
+def approve_slack_message(message_id: str) -> dict[str, Any]:
     """Approve and send a pending Slack message.
 
     This function sends a message that was previously queued by post_to_slack()
@@ -307,7 +306,7 @@ def approve_slack_message(message_id: str) -> dict:
 
 
 @function_tool
-def get_pending_slack_messages() -> dict:
+def get_pending_slack_messages() -> dict[str, Any]:
     """Get list of pending Slack messages awaiting approval.
 
     Returns:

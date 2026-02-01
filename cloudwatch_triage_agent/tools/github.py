@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 import httpx
 from agents import function_tool
 
-from cloudwatch_triage_agent.config import get_config
+from cloudwatch_triage_agent.config import get_settings
 
 GITHUB_API_BASE = "https://api.github.com"
 
 
 def _get_github_headers() -> dict[str, str]:
     """Get headers for GitHub API requests."""
-    config = get_config()
+    settings = get_settings()
     return {
         "Accept": "application/vnd.github+json",
-        "Authorization": f"Bearer {config.github.token}",
+        "Authorization": f"Bearer {settings.github.token}",
         "X-GitHub-Api-Version": "2022-11-28",
     }
 
@@ -30,7 +31,7 @@ def get_github_deployments(
     repo_owner: str | None = None,
     repo_name: str | None = None,
     limit: int = 20,
-) -> dict:
+) -> dict[str, Any]:
     """Get GitHub deployments for a specific environment within a time range.
 
     Args:
@@ -50,9 +51,9 @@ def get_github_deployments(
         - total_count: Number of deployments found
         - status: Query status (success or failed)
     """
-    config = get_config()
-    owner = repo_owner or config.github.owner
-    repo = repo_name or config.github.repo
+    settings = get_settings()
+    owner = repo_owner or settings.github.owner
+    repo = repo_name or settings.github.repo
 
     if not owner or not repo:
         return {

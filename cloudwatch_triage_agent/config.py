@@ -3,55 +3,58 @@
 from __future__ import annotations
 
 import json
-import os
-from dataclasses import dataclass, field
-from typing import Literal
+from functools import lru_cache
+from typing import Any, Literal
 
-from dotenv import load_dotenv
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-load_dotenv()
-
-Environment = Literal["dev", "prod"]
+type Environment = Literal["dev", "prod"]
 
 
-@dataclass
-class AWSConfig:
+class AWSSettings(BaseSettings):
     """AWS configuration."""
 
-    region: str = field(default_factory=lambda: os.getenv("AWS_REGION", "ap-northeast-1"))
-    access_key_id: str | None = field(default_factory=lambda: os.getenv("AWS_ACCESS_KEY_ID"))
-    secret_access_key: str | None = field(
-        default_factory=lambda: os.getenv("AWS_SECRET_ACCESS_KEY")
-    )
+    model_config = SettingsConfigDict(env_prefix="AWS_")
+
+    region: str = "ap-northeast-1"
+    access_key_id: str | None = None
+    secret_access_key: str | None = None
 
 
-@dataclass
-class SlackConfig:
+class SlackSettings(BaseSettings):
     """Slack configuration."""
 
-    bot_token: str = field(default_factory=lambda: os.getenv("SLACK_BOT_TOKEN", ""))
-    channel_id: str = field(default_factory=lambda: os.getenv("SLACK_CHANNEL_ID", ""))
+    model_config = SettingsConfigDict(env_prefix="SLACK_")
+
+    bot_token: str = ""
+    channel_id: str = ""
 
 
-@dataclass
-class GitHubConfig:
+class GitHubSettings(BaseSettings):
     """GitHub configuration."""
 
-    token: str = field(default_factory=lambda: os.getenv("GITHUB_TOKEN", ""))
-    owner: str = field(default_factory=lambda: os.getenv("GITHUB_OWNER", ""))
-    repo: str = field(default_factory=lambda: os.getenv("GITHUB_REPO", ""))
+    model_config = SettingsConfigDict(env_prefix="GITHUB_")
+
+    token: str = ""
+    owner: str = ""
+    repo: str = ""
 
 
-@dataclass
-class ServiceConfig:
+class ServiceSettings(BaseSettings):
     """Service log group mapping configuration."""
 
-    log_groups: dict[str, dict[str, str]] = field(default_factory=dict)
+    model_config = SettingsConfigDict(env_prefix="SERVICE_")
 
-    def __post_init__(self) -> None:
-        if not self.log_groups:
-            raw = os.getenv("SERVICE_LOG_GROUPS", "{}")
-            self.log_groups = json.loads(raw)
+    log_groups: dict[str, dict[str, str]] = Field(default_factory=dict)
+
+    @field_validator("log_groups", mode="before")
+    @classmethod
+    def parse_log_groups(cls, v: Any) -> dict[str, dict[str, str]]:
+        """Parse log groups from JSON string if needed."""
+        if isinstance(v, str):
+            return json.loads(v) if v else {}
+        return v or {}
 
     def get_log_group(self, service: str, env: Environment) -> str | None:
         """Get the log group for a service and environment."""
@@ -65,20 +68,24 @@ class ServiceConfig:
         return list(self.log_groups.keys())
 
 
-@dataclass
-class Config:
-    """Main configuration container."""
+class Settings(BaseSettings):
+    """Main application settings."""
 
-    aws: AWSConfig = field(default_factory=AWSConfig)
-    slack: SlackConfig = field(default_factory=SlackConfig)
-    github: GitHubConfig = field(default_factory=GitHubConfig)
-    services: ServiceConfig = field(default_factory=ServiceConfig)
-    default_env: Environment = field(
-        default_factory=lambda: os.getenv("DEFAULT_ENV", "dev")  # type: ignore
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
-    openai_api_key: str = field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
 
-    def validate(self) -> list[str]:
+    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+    default_env: Environment = Field(default="dev", alias="DEFAULT_ENV")
+
+    aws: AWSSettings = Field(default_factory=AWSSettings)
+    slack: SlackSettings = Field(default_factory=SlackSettings)
+    github: GitHubSettings = Field(default_factory=GitHubSettings)
+    services: ServiceSettings = Field(default_factory=ServiceSettings)
+
+    def validate_config(self) -> list[str]:
         """Validate configuration and return list of missing required fields."""
         errors: list[str] = []
 
@@ -97,6 +104,16 @@ class Config:
         return errors
 
 
-def get_config() -> Config:
-    """Get the application configuration."""
-    return Config()
+@lru_cache
+def get_settings() -> Settings:
+    """Get the application settings (cached)."""
+    return Settings()
+
+
+# Alias for backward compatibility
+def get_config() -> Settings:
+    """Get the application configuration.
+
+    Deprecated: Use get_settings() instead.
+    """
+    return get_settings()

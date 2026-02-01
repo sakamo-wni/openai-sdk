@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import boto3
 from agents import function_tool
 
-from cloudwatch_triage_agent.config import get_config
+from cloudwatch_triage_agent.config import get_settings
 
 if TYPE_CHECKING:
     from mypy_boto3_logs import CloudWatchLogsClient
@@ -17,12 +17,12 @@ if TYPE_CHECKING:
 
 def _get_logs_client() -> "CloudWatchLogsClient":
     """Get a CloudWatch Logs client."""
-    config = get_config()
+    settings = get_settings()
     return boto3.client(
         "logs",
-        region_name=config.aws.region,
-        aws_access_key_id=config.aws.access_key_id,
-        aws_secret_access_key=config.aws.secret_access_key,
+        region_name=settings.aws.region,
+        aws_access_key_id=settings.aws.access_key_id,
+        aws_secret_access_key=settings.aws.secret_access_key,
     )
 
 
@@ -34,7 +34,7 @@ def search_cloudwatch_logs(
     start_time: str,
     end_time: str,
     limit: int = 100,
-) -> dict:
+) -> dict[str, Any]:
     """Search CloudWatch Logs using Logs Insights query.
 
     Args:
@@ -56,11 +56,11 @@ def search_cloudwatch_logs(
         - statistics: Query statistics (bytes scanned, records matched, etc.)
         - status: Query status (Complete, Failed, Cancelled, etc.)
     """
-    config = get_config()
-    log_group = config.services.get_log_group(service, environment)  # type: ignore
+    settings = get_settings()
+    log_group = settings.services.get_log_group(service, environment)  # type: ignore
 
     if not log_group:
-        available_services = config.services.list_services()
+        available_services = settings.services.list_services()
         return {
             "query": query,
             "log_group": "",

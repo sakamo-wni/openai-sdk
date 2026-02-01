@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import boto3
 from agents import function_tool
 
-from cloudwatch_triage_agent.config import get_config
+from cloudwatch_triage_agent.config import get_settings
 
 if TYPE_CHECKING:
     from mypy_boto3_cloudtrail import CloudTrailClient
@@ -16,12 +17,12 @@ if TYPE_CHECKING:
 
 def _get_cloudtrail_client() -> "CloudTrailClient":
     """Get a CloudTrail client."""
-    config = get_config()
+    settings = get_settings()
     return boto3.client(
         "cloudtrail",
-        region_name=config.aws.region,
-        aws_access_key_id=config.aws.access_key_id,
-        aws_secret_access_key=config.aws.secret_access_key,
+        region_name=settings.aws.region,
+        aws_access_key_id=settings.aws.access_key_id,
+        aws_secret_access_key=settings.aws.secret_access_key,
     )
 
 
@@ -97,7 +98,7 @@ def get_cloudtrail_events(
     username: str | None = None,
     include_read_only: bool = False,
     limit: int = 50,
-) -> dict:
+) -> dict[str, Any]:
     """Get AWS CloudTrail events for change tracking within a time range.
 
     This tool retrieves configuration change events from AWS CloudTrail,
@@ -122,7 +123,7 @@ def get_cloudtrail_events(
         - filters_applied: Filters that were applied
         - status: Query status (success or failed)
     """
-    config = get_config()
+    settings = get_settings()
 
     # Parse timestamps
     try:
@@ -224,9 +225,7 @@ def get_cloudtrail_events(
                     })
 
                 # Parse CloudTrailEvent JSON for additional details
-                import json
-
-                cloud_trail_event = {}
+                cloud_trail_event: dict[str, Any] = {}
                 try:
                     cloud_trail_event = json.loads(event.get("CloudTrailEvent", "{}"))
                 except json.JSONDecodeError:
